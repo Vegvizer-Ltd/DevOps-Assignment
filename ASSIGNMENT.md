@@ -1,121 +1,265 @@
 # DevOps Engineer Home Assignment
 
-## Goal
+## Overview
 
-Review and improve this repository as if you had inherited it from another engineer and were preparing it for use by a team operating development and production environments.
+You have inherited an existing repository for a small application that is intended to be operated across development and production environments.
 
-The assignment focuses on Kubernetes, Helm, GitHub Actions, GitOps/Argo CD, cloud architecture, and troubleshooting.
+The repository contains an application, Kubernetes and Helm configuration, CI/CD configuration, and GitOps configuration.
 
-No live Kubernetes cluster, Argo CD server, cloud subscription, or registry is required.
+The implementation is not necessarily complete or correct.
 
-## Requirements
+Your task is to review the repository, improve it where you believe necessary, and explain the engineering decisions behind your solution.
 
-### Kubernetes and Helm
+The assignment focuses primarily on:
 
-The application should:
+* Kubernetes
+* Helm
+* GitHub Actions
+* GitOps / Argo CD
+* Cloud architecture
+* Troubleshooting and operational reasoning
 
-- support multiple replicas;
-- expose a stable internal Kubernetes Service;
-- use appropriate health and readiness checks;
-- support safe rolling updates;
-- define appropriate resource allocation;
-- support environment-specific configuration without duplicating the chart;
-- avoid storing sensitive values as plain text in Git.
+No live Kubernetes cluster, Argo CD server, cloud subscription, or container registry is required.
 
-The following commands should succeed after your changes:
+---
+
+## General Expectations
+
+Treat the repository as if it had been handed over to you by another engineer and your team was planning to operate it in real development and production environments.
+
+Do not assume that the existing implementation is correct.
+
+You are expected to:
+
+* identify important reliability, security and maintainability issues;
+* make appropriate improvements;
+* prioritize issues based on their operational impact;
+* document assumptions where information is missing;
+* explain important trade-offs in your solution.
+
+There is not necessarily one correct implementation.
+
+We are more interested in your engineering reasoning than in the amount of YAML or tooling you add.
+
+---
+
+# Part 1 - Kubernetes and Helm
+
+Review the supplied Helm chart and Kubernetes configuration.
+
+The resulting deployment should be suitable for running the supplied application in both development and production environments.
+
+The solution should demonstrate appropriate consideration for:
+
+* application availability;
+* configuration management;
+* health and lifecycle management;
+* resource management;
+* service connectivity;
+* deployment behavior;
+* sensitive configuration;
+* maintainability across environments.
+
+Avoid duplicating the Helm chart for individual environments.
+
+After your changes, the following commands should complete successfully:
 
 ```bash
 helm lint helm/application
-helm template application helm/application -f environments/dev/values.yaml
-helm template application helm/application -f environments/prod/values.yaml
+
+helm template application helm/application \
+  -f environments/dev/values.yaml
+
+helm template application helm/application \
+  -f environments/prod/values.yaml
 ```
 
-### Production readiness
+You may introduce additional Kubernetes configuration where you believe it provides clear operational value.
 
-Review the existing Kubernetes implementation and make the changes you believe are necessary for a reliable service.
+Avoid adding resources simply because they are commonly used.
 
-Do not add resources simply because they exist in Kubernetes. Be prepared to explain why each addition is useful.
+---
 
-### GitHub Actions
+# Part 2 - Production Readiness
 
-Review the existing workflow and improve it.
+Assume this service will eventually receive production traffic.
 
-CI should validate at least:
+Review the existing deployment from an operational perspective and make the changes you believe are necessary to operate it reliably.
 
-- application tests;
-- Helm linting;
-- Helm rendering for relevant environments;
-- container build.
+In your solution, explain:
 
-Deployment must remain GitOps-driven. GitHub Actions must not deploy directly to Kubernetes.
+1. The most important problems you identified.
+2. Why they could affect the application.
+3. How your changes address them.
+4. Any remaining risks or improvements you deliberately chose not to implement.
 
-Consider permissions, credentials, concurrency, repeat runs, failure behavior, and artifact traceability.
+---
 
-### Argo CD / GitOps
+# Part 3 - GitHub Actions
 
-Review the supplied Argo CD manifests.
+Review the supplied GitHub Actions workflow.
+
+The repository should support a reasonable software delivery lifecycle for development and production.
+
+At minimum, changes should be validated before they are considered deployable.
+
+The CI process should cover:
+
+* application tests;
+* Helm validation;
+* container build validation.
+
+Application delivery should follow the GitOps model represented by this repository.
+
+GitHub Actions should not directly deploy application workloads to Kubernetes.
+
+You may restructure the supplied workflow if you believe another design is more appropriate.
+
+Document the important CI/CD decisions you made.
+
+---
+
+# Part 4 - Argo CD and GitOps
+
+Review the supplied Argo CD configuration.
 
 Assume that:
 
-- development changes may be synchronized automatically;
-- production changes require a safer promotion model;
-- the same Git repository represents the desired state.
+* development may be deployed frequently;
+* production changes require an appropriate level of protection;
+* Git represents the desired state of the application;
+* the same repository is currently used for both environments.
 
-No real Argo CD instance is required. We will evaluate the manifests and your design explanation.
+No real Argo CD installation is required.
 
-Explain your approach to environment separation, synchronization, rollback, drift, and production safety.
+Modify the supplied configuration where appropriate and explain your approach to:
 
-### Incident scenario
+* environment separation;
+* synchronization;
+* production promotion;
+* rollback;
+* configuration drift;
+* production safety.
 
-After a deployment, Argo CD reports the application as `Healthy`, but users intermittently receive HTTP `503` responses immediately after deployments.
+You may retain the current Argo CD structure or redesign it if you believe another approach is more appropriate.
 
-Describe how you would investigate this issue in a real cluster.
+Explain your choice.
 
-Include:
+---
 
-- investigation order;
-- commands you would run;
-- what each command tells you;
-- at least three plausible hypotheses;
-- how you would confirm or eliminate each hypothesis.
+# Part 5 - Incident Investigation
 
-### Cloud architecture
+After a new version is released, the following incident is reported:
 
-Describe a minimal production architecture for this service on a managed Kubernetes platform.
+> Argo CD reports the application as synchronized and healthy.
+>
+> Users intermittently receive HTTP 503 responses shortly after deployments.
 
-Azure is preferred but not mandatory.
+Assume you now have access to the Kubernetes cluster.
 
-Address at least:
+Describe how you would investigate the incident.
 
-- managed Kubernetes;
-- container registry;
-- secrets;
-- identity;
-- ingress;
-- DNS and TLS;
-- observability;
-- networking.
+Your answer should include:
 
-Include a simple architecture diagram. No cloud resources need to be created.
+* your investigation order;
+* commands you would execute;
+* what you expect to learn from them;
+* at least three plausible hypotheses;
+* how you would confirm or eliminate each hypothesis.
 
-### Engineering decision
+We are interested in your troubleshooting methodology, not only in a list of Kubernetes commands.
 
-A developer suggests removing Argo CD and allowing GitHub Actions to execute `helm upgrade` directly against the production cluster because it is simpler.
+---
 
-Would you approve the proposal?
+# Part 6 - Cloud Architecture
 
-Explain the advantages, disadvantages, risks, and circumstances that influence your decision.
+The application will eventually run on a managed Kubernetes platform in a public cloud.
 
-## Deliverables
+Design a minimal production architecture for the service.
 
-Submit the repository containing your changes plus `SOLUTION.md` with:
+Azure is preferred, but another major cloud provider is acceptable.
 
-1. Important problems you identified.
-2. Changes you made.
-3. Key decisions and trade-offs.
-4. Incident investigation.
-5. Proposed cloud architecture.
-6. Assumptions and intentionally incomplete work.
-7. AI tools used, what they were used for, and at least one AI recommendation you rejected or changed and why.
+Your design should consider:
 
-Please focus on engineering quality rather than implementation volume.
+* managed Kubernetes;
+* container image storage;
+* secrets;
+* workload identity;
+* external traffic;
+* DNS and TLS;
+* observability;
+* networking and access control.
+
+No cloud resources need to be provisioned.
+
+Include a simple architecture diagram and briefly explain the major decisions and trade-offs.
+
+---
+
+# Part 7 - Engineering Decision
+
+A developer proposes the following change:
+
+> "Argo CD adds unnecessary complexity. We should let GitHub Actions run `helm upgrade` directly against the production Kubernetes cluster instead."
+
+Would you approve this proposal?
+
+Explain your position.
+
+Your answer should consider both the benefits and drawbacks of the proposal rather than treating either approach as universally correct.
+
+---
+
+# Deliverables
+
+Submit your completed repository.
+
+Your submission should include all implementation changes as well as a `SOLUTION.md`.
+
+The `SOLUTION.md` should contain:
+
+1. **Problems identified**
+   The most important issues you found in the supplied implementation.
+
+2. **Changes made**
+   A concise explanation of your implementation changes.
+
+3. **Engineering decisions**
+   Important design choices, assumptions and trade-offs.
+
+4. **Incident investigation**
+   Your response to the troubleshooting scenario.
+
+5. **Cloud architecture**
+   Your proposed architecture and diagram.
+
+6. **Remaining work**
+   Anything you intentionally left incomplete and what you would do next.
+
+7. **AI usage**
+   If AI tools were used:
+
+   * which tools you used;
+   * what you used them for;
+   * at least one suggestion you rejected, modified, or independently validated, and why.
+
+---
+
+# Constraints
+
+* Do not commit real credentials or secrets.
+* Do not require access to a real Kubernetes cluster.
+* Do not require access to a real Argo CD instance.
+* Do not require access to a real cloud subscription.
+* Do not replace the supplied application with a different application.
+* Do not duplicate the entire Helm chart for each environment.
+
+---
+
+# Scope
+
+Please treat this as a time-boxed engineering exercise rather than an attempt to build a complete production platform.
+
+Focus on the changes you believe provide the greatest engineering value.
+
+Clear reasoning, prioritization and operational understanding are more important than implementation volume.
