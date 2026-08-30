@@ -1,0 +1,45 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/example/platform-status-api
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+containerPort: 3000
+
+config:
+  appEnv: default
+  logLevel: info
+
+secret:
+  apiKey: changeme
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+probes:
+  liveness:
+    path: /readyz
+    initialDelaySeconds: 1
+    periodSeconds: 5
+  readiness:
+    path: /health
+    initialDelaySeconds: 1
+    periodSeconds: 5
+
+strategy:
+  maxUnavailable: 100%
+  maxSurge: 0
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
