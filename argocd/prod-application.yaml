@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/acme/devops-home-assignment.git
+    repoURL: https://github.com/Vegvizer-Ltd/DevOps-Assignment.git
     targetRevision: main
     path: helm/application
     helm:
