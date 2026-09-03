@@ -16,6 +16,8 @@ config:
   appEnv: default
   logLevel: info
 
+secret: {}
+
 resources:
   requests:
     cpu: 100m

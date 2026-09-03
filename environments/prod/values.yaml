@@ -1,15 +1,11 @@
 replicaCount: 3
 
 image:
-  repository: ghcr.io/acme/platform-status-api
   tag: 1.0.0
 
 config:
   appEnv: production
   logLevel: info
-
-secret:
-  apiKey: prod-super-secret-key
 
 autoscaling:
   enabled: true
