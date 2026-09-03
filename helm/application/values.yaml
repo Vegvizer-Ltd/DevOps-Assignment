@@ -16,9 +16,6 @@ config:
   appEnv: default
   logLevel: info
 
-secret:
-  apiKey: changeme
-
 resources:
   limits:
     cpu: 500m
