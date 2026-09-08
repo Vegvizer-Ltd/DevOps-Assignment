@@ -1,0 +1,10 @@
+.git
+.github
+.gitignore
+.dockerignore
+argocd
+environments
+helm
+node_modules
+*.md
+*.log
