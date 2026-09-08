@@ -8,7 +8,6 @@ image:
 service:
   type: ClusterIP
   port: 80
-  targetPort: 3000
 
 containerPort: 3000
 
@@ -20,23 +19,26 @@ secret:
   apiKey: changeme
 
 resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
   limits:
     cpu: 500m
     memory: 256Mi
 
 probes:
   liveness:
-    path: /readyz
+    path: /healthz
     initialDelaySeconds: 1
     periodSeconds: 5
   readiness:
-    path: /health
+    path: /readyz
     initialDelaySeconds: 1
     periodSeconds: 5
 
 strategy:
-  maxUnavailable: 100%
-  maxSurge: 0
+  maxUnavailable: 0%
+  maxSurge: 25%
 
 autoscaling:
   enabled: false
