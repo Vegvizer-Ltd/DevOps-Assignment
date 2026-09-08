@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/Vegvizer-Ltd/DevOps-Assignment.git
-    targetRevision: main
+    targetRevision: dev
     path: helm/application
     helm:
       valueFiles:

@@ -156,7 +156,42 @@
 
 ## Part 4 -- ArgoCD and GitOps
 
-*TODO*
+### Problems
+
+1. **Both environments track `main` branch.** Dev and prod both used `targetRevision: main`. Every merge to main deploys to both environments simultaneously. There is no promotion gate -- a Helm chart change or values change goes straight to prod the moment it's merged.
+
+2. **Prod has automated sync with no approval.** The prod application auto-syncs on any Git change. The assignment states "production changes require an appropriate level of protection." There is no human review before production deployment.
+
+3. **Both apps use `project: default`.** The ArgoCD default project has no restrictions on repositories, destination namespaces, or resource types. A misconfiguration could deploy to the wrong namespace or create unintended resources.
+
+### Fixes
+
+**Separate branches per environment** -- Changed `targetRevision` in `argocd/dev-application.yaml` from `main` to `dev`, and in `argocd/prod-application.yaml` from `production` to `main`.
+*Why:* Prod tracks `main` as the stable, production-ready branch. Dev tracks a `dev` branch for fast iteration. Changes only reach production when merged into `main` (via PR with review). This provides full isolation: Helm chart changes, template modifications, or values updates on `dev` do not affect production until a deliberate promotion occurs. The trade-off is additional Git overhead (maintaining a second branch and promotion PRs), but the safety benefit outweighs this for production workloads.
+
+**Kept `selfHeal: true` on both environments.**
+*Why:* selfHeal ensures that manual changes in the cluster (e.g., someone running `kubectl edit`) are reverted to match Git. This is a core GitOps principle -- Git is the source of truth. Without selfHeal, configuration drift would go undetected.
+
+### Approach to key concerns
+
+**Environment separation:** Dev and prod are isolated at three levels: separate Git branches (`dev` vs `main`), separate Kubernetes namespaces (`platform-dev` vs `platform-prod`), and separate environment values files. A Helm chart change on `dev` only affects dev until promoted.
+
+**Synchronization:** Dev uses automated sync with prune and selfHeal for fast iteration. Prod uses automated selfHeal (corrects drift) but requires a branch merge to trigger new deployments.
+
+**Production promotion:** To promote a change to production, merge `dev` into `main` (via PR with review). This is the only mechanism that triggers a prod deployment. The PR serves as the approval gate and audit trail.
+
+**Rollback:** Two options depending on urgency:
+1. **Git revert** -- revert the commit on `main`. ArgoCD auto-syncs to the reverted state. Preferred because it maintains Git as source of truth.
+2. **ArgoCD rollback** -- use `argocd app rollback` for immediate recovery while preparing a proper Git revert. This is a temporary measure since selfHeal will eventually re-sync to Git state.
+
+**Configuration drift:** `selfHeal: true` on both environments ensures any manual cluster changes are corrected automatically. Git always wins.
+
+**Production safety:** The combination of `main` as the protected production branch (no accidental deploys), no prune (no accidental deletions), selfHeal (no drift), and PR-based promotion from `dev` to `main` (audit trail + review) provides layered protection.
+
+### Not fixed (and why)
+
+- **ArgoCD AppProject**: Both applications use `project: default` which has no restrictions. A dedicated AppProject for production could restrict allowed source repos, destination namespaces, and resource types (e.g., prevent creating ClusterRoles). This is noted as a future improvement -- it requires ArgoCD server-side configuration that is outside the scope of this repository.
+- **Automated sync removed entirely for prod**: Kept automated selfHeal because correcting drift is valuable. An alternative approach would be to remove all automated sync and require manual `argocd app sync` for every production change, but this adds operational friction without proportional safety benefit given the branch-based promotion model already provides the approval gate.
 
 ---
 
@@ -193,3 +228,5 @@
 ### Suggestions rejected / modified
 
 **CI/CD workflow: 3-job pipeline with duplicate builds.** Claude initially implemented a 3-job pipeline (test, build, push) that built the Docker image in both the `build` and `push` jobs separately. I pointed out this was wasteful -- it doubles build time and doesn't guarantee identical images. Claude then proposed passing the image as an artifact between jobs, but this added unnecessary complexity (upload/download of a tarball) for a simple workflow. I decided to simplify to 2 jobs (test, build-and-push) which keeps the separation between validation and delivery without the overhead of artifact passing or duplicate builds.
+
+**ArgoCD environment separation: same branch vs separate branches.** Claude suggested keeping both environments on the `main` branch (Option A) with promotion done by updating `environments/prod/values.yaml` via PR. I rejected this because Helm chart template changes on `main` would affect both dev and prod simultaneously -- there is no way to isolate infrastructure changes. I chose separate branches (Option B: dev tracks `dev`, prod tracks `main`) because it provides full isolation. Any change -- whether to values, templates, or chart structure -- only reaches production through an explicit merge from `dev` to `main`. Using `main` as the production branch is natural since it represents the stable, reviewed state of the codebase. The additional Git overhead of maintaining a `dev` branch is an acceptable trade-off for the safety it provides.
