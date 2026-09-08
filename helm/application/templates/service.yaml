@@ -7,8 +7,8 @@ spec:
   selector:
     app.kubernetes.io/name: {{ include "platform-status-api.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/component: web
+    app.kubernetes.io/component: api
   ports:
     - name: http
       port: {{ .Values.service.port }}
-      targetPort: web
+      targetPort: http
