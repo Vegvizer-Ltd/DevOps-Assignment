@@ -1,0 +1,14 @@
+{{- if gt (int .Values.replicaCount) 1 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "platform-status-api.fullname" . }}
+  labels:
+    {{- include "platform-status-api.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "platform-status-api.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

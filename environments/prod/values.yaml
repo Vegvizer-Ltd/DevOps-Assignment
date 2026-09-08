@@ -11,6 +11,9 @@ config:
 secret:
   apiKey: prod-super-secret-key
 
+pdb:
+  minAvailable: 2
+
 autoscaling:
   enabled: true
   minReplicas: 2

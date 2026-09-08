@@ -36,6 +36,9 @@ probes:
     initialDelaySeconds: 1
     periodSeconds: 5
 
+pdb:
+  minAvailable: 1
+
 strategy:
   maxUnavailable: 0%
   maxSurge: 25%
