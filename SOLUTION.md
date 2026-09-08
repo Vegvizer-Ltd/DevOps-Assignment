@@ -71,7 +71,6 @@
 - **NetworkPolicy**: Useful in multi-tenant clusters but adds complexity without a stated network isolation requirement.
 - **PodAntiAffinity**: Would spread pods across nodes, but is only meaningful with information about the cluster topology.
 - **ServiceAccount**: The default service account is sufficient. A dedicated one with `automountServiceAccountToken: false` would be a minor security improvement but is not critical for this application.
-- **KEDA**: Event-driven autoscaling is unnecessary for a simple HTTP API. The standard HPA on CPU utilization is the appropriate scaling mechanism here.
 
 ---
 
@@ -107,7 +106,51 @@
 
 ## Part 3 -- GitHub Actions
 
-*TODO*
+### Problems
+
+1. **Workflow directly deploys to Kubernetes.** The `helm upgrade --install` step violates the GitOps model. The assignment explicitly states GitHub Actions should not deploy application workloads -- ArgoCD handles that.
+
+2. **`permissions: write-all`.** Grants every GitHub permission to the workflow. Violates least privilege and increases the blast radius if the workflow is compromised.
+
+3. **Image always tagged `latest` only.** No version-specific tag. Impossible to trace which commit produced an image, pin a specific version, or roll back to a known build.
+
+4. **Image push runs on PRs.** No condition separating PR validation from main branch delivery. Registry login and push would execute on every PR, either failing or pushing unwanted images.
+
+5. **Helm template only validates dev.** Only `environments/dev/values.yaml` is tested. A broken prod values file would pass CI undetected.
+
+6. **Single monolithic job.** CI (validation) and CD (build/push) are mixed in one job. PRs don't need to build and push images -- they only need validation.
+
+7. **`ubuntu-latest` runner.** Not pinned to a specific version. Runner upgrades could silently break builds.
+
+8. **Uses custom `REGISTRY_PASSWORD` secret.** For GHCR, the built-in `GITHUB_TOKEN` is sufficient and avoids managing a separate secret.
+
+### Fixes
+
+**Removed `helm upgrade --install` step.**
+*Why:* ArgoCD is the deployment mechanism. GitHub Actions should validate and build, not deploy. This follows the GitOps model where Git is the source of truth and ArgoCD reconciles the desired state.
+
+**Split into two jobs: `test` and `build-and-push`.**
+*Why:* The `test` job runs on all PRs and pushes (npm test, helm lint, helm template for both envs). The `build-and-push` job only runs on push to main after tests pass. This means PRs get fast validation without unnecessary image builds, and only merged code produces images.
+
+**Removed `permissions: write-all`, scoped to `packages: write` on `build-and-push` only.**
+*Why:* Least privilege. The `test` job needs no special permissions. Only `build-and-push` needs `packages: write` to push to GHCR.
+
+**Image tagged with both `${{ github.sha }}` and `latest`.**
+*Why:* The SHA tag provides traceability (which commit produced this image) and enables pinning specific versions. The `latest` tag provides a convenient moving pointer for dev environments.
+
+**Added Helm template validation for both environments.**
+*Why:* Both dev and prod values files are now validated in CI. A misconfiguration in either environment will be caught before merge.
+
+**Pinned runner to `ubuntu-24.04`.**
+*Why:* `ubuntu-latest` is a moving target. Pinning to a specific version prevents silent breakage from runner upgrades.
+
+**Switched from `REGISTRY_PASSWORD` to `GITHUB_TOKEN`.**
+*Why:* `GITHUB_TOKEN` is automatically available in GitHub Actions for GHCR access. No need to manage a separate secret.
+
+### Not fixed (and why)
+
+- **Docker build caching**: Could speed up builds using `docker/build-push-action` with layer caching, but adds complexity for a small single-stage image. Not worth it at this scale.
+- **Branch protection rules**: Should require the `test` job to pass before merging PRs. This is configured in GitHub repository settings, not in the workflow file itself.
 
 ---
 
@@ -145,4 +188,8 @@
 
 ## AI Usage
 
-*TODO*
+**Tool used:** Claude Code (Claude Opus 4.6) -- used throughout the assignment for code review, implementation, and documentation.
+
+### Suggestions rejected / modified
+
+**CI/CD workflow: 3-job pipeline with duplicate builds.** Claude initially implemented a 3-job pipeline (test, build, push) that built the Docker image in both the `build` and `push` jobs separately. I pointed out this was wasteful -- it doubles build time and doesn't guarantee identical images. Claude then proposed passing the image as an artifact between jobs, but this added unnecessary complexity (upload/download of a tarball) for a simple workflow. I decided to simplify to 2 jobs (test, build-and-push) which keeps the separation between validation and delivery without the overhead of artifact passing or duplicate builds.

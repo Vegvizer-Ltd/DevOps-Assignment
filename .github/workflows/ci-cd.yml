@@ -5,11 +5,9 @@ on:
   push:
     branches: [main]
 
-permissions: write-all
-
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+  test:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -23,21 +21,29 @@ jobs:
       - name: Helm lint
         run: helm lint helm/application
 
-      - name: Render Helm
+      - name: Helm template (dev)
         run: helm template application helm/application -f environments/dev/values.yaml
 
-      - name: Build image
-        run: docker build -t ghcr.io/acme/platform-status-api:latest .
+      - name: Helm template (prod)
+        run: helm template application helm/application -f environments/prod/values.yaml
+
+  build-and-push:
+    runs-on: ubuntu-24.04
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Login to registry
-        run: echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - name: Push image
-        run: docker push ghcr.io/acme/platform-status-api:latest
-
-      - name: Deploy application
+      - name: Build and push image
         run: |
-          helm upgrade --install platform-status-api helm/application \
-            --namespace platform \
-            --create-namespace \
-            -f environments/prod/values.yaml
+          docker build \
+            -t ghcr.io/acme/platform-status-api:${{ github.sha }} \
+            -t ghcr.io/acme/platform-status-api:latest \
+            .
+          docker push ghcr.io/acme/platform-status-api:${{ github.sha }}
+          docker push ghcr.io/acme/platform-status-api:latest
